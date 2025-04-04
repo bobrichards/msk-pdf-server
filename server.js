@@ -1,48 +1,38 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
-const bodyParser = require('body-parser');
+const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
-app.use(bodyParser.json());
-app.use(express.static('public'));
+app.use(express.json({ limit: '10mb' }));
 
 app.post('/generate-pdf', async (req, res) => {
-  const data = req.body;
-  const templatePath = path.join(__dirname, 'template.html');
-  let html = fs.readFileSync(templatePath, 'utf8');
+  const html = req.body.html;
 
-  // Replace placeholders in template
-  for (const key in data) {
-    const regex = new RegExp(`\\$\\{${key}\\}`, 'g');
-    html = html.replace(regex, data[key]);
+  if (!html) {
+    return res.status(400).send('Missing HTML content');
   }
 
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
   });
 
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'networkidle0' });
 
-  const pdfBuffer = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: { top: '1cm', bottom: '1cm', left: '1cm', right: '1cm' },
-  });
+  const pdfBuffer = await page.pdf({ format: 'A4' });
 
   await browser.close();
 
   res.set({
     'Content-Type': 'application/pdf',
-    'Content-Disposition': `attachment; filename="report-${data.eventNo}.pdf"`,
+    'Content-Disposition': 'attachment; filename="generated.pdf"',
   });
 
   res.send(pdfBuffer);
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log('Server running...');
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`PDF server running on port ${PORT}`));
