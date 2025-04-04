@@ -1,23 +1,13 @@
-const express = require('express');
-const multer = require('multer');
-const puppeteer = require('puppeteer');
-const fs = require('fs');
-const path = require('path');
-const bodyParser = require('body-parser');
-const app = express();
-const upload = multer();
-
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-
 app.post('/generate', upload.any(), async (req, res) => {
   try {
+    console.log("Incoming request fields:");
+    console.log(req.body); // This should include 'aiSummary'
+
     // Load HTML template
     let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
-    // Replace variables with form values
     const fields = {
-	  logo: req.body.logo || '', 
+      logo: req.body.logo || '',
       date: req.body.date,
       eventNo: req.body.eventNo,
       practitionersName: req.body.practitionersName,
@@ -44,13 +34,16 @@ app.post('/generate', upload.any(), async (req, res) => {
       qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
 
-    // Replace {{ variable }} with value in HTML
+    console.log("Parsed aiSummary:", fields.aiSummary);
+
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
       html = html.replace(regex, fields[key] || '');
     }
 
-    // Use Puppeteer to generate PDF
+    // Optional: write debug HTML to file (for testing)
+    fs.writeFileSync("debug_rendered.html", html);
+
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -58,7 +51,6 @@ app.post('/generate', upload.any(), async (req, res) => {
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
     await browser.close();
 
-    // Send PDF
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename=MSK_Report_${fields.eventNo || 'output'}.pdf`
@@ -66,12 +58,7 @@ app.post('/generate', upload.any(), async (req, res) => {
     res.send(pdfBuffer);
 
   } catch (error) {
-    console.error(error);
+    console.error("PDF generation error:", error);
     res.status(500).send("PDF generation failed");
   }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`PDF generation server running on port ${PORT}`);
 });
