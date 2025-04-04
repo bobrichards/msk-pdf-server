@@ -7,24 +7,41 @@ const bodyParser = require('body-parser');
 const app = express();
 const upload = multer();
 
+// CORS Middleware
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*"); // You can restrict to your domain later
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   next();
 });
 
-// Middlewares
+// Parsing Middlewares
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 // PDF Generation Route
 app.post('/generate', upload.any(), async (req, res) => {
   try {
-    // Load the HTML template
     let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
-    // Extract fields
+    const photo1 = req.files.find(f => f.fieldname === "photo1");
+    const photo2 = req.files.find(f => f.fieldname === "photo2");
+
+    let imageSection = '<div class="image-container">';
+    if (photo1) {
+      const data1 = `data:${photo1.mimetype};base64,${photo1.buffer.toString("base64")}`;
+      imageSection += `<div><img src="${data1}" alt="Photo 1"></div>`;
+    }
+    if (photo2) {
+      const data2 = `data:${photo2.mimetype};base64,${photo2.buffer.toString("base64")}`;
+      imageSection += `<div><img src="${data2}" alt="Photo 2"></div>`;
+    }
+    if (!photo1 && !photo2) {
+      const logoUrl = req.body.logo || '';
+      imageSection += `<div style="text-align:center;"><img src="${logoUrl}" alt="Logo" style="max-width: 300px; margin-top: 20px;" /></div>`;
+    }
+    imageSection += '</div>';
+
     const fields = {
       logo: req.body.logo || '',
       date: req.body.date,
@@ -50,24 +67,19 @@ app.post('/generate', upload.any(), async (req, res) => {
       kneeDrop: req.body.kneeDrop || '',
       aiSummary: req.body.aiSummary || '',
       shortenedUrl: req.body.shortenedUrl || '',
-      qrCodeDataURL: req.body.qrCodeDataURL || ''
+      qrCodeDataURL: req.body.qrCodeDataURL || '',
+      imageSection: imageSection
     };
 
-    // ? Optional Logging for Debugging
-    console.log("Incoming request fields:");
-    console.log(fields);
-    fs.writeFileSync("last_fields.json", JSON.stringify(fields, null, 2)); // For offline debugging if needed
-
-    // Replace {{ variable }} in the template
+    // Replace all placeholders in the HTML
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
       html = html.replace(regex, fields[key]);
     }
 
-    // Optional: Write final HTML to file for manual testing
+    // Output final HTML for debug if needed
     fs.writeFileSync("debug_rendered.html", html);
 
-    // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -75,7 +87,6 @@ app.post('/generate', upload.any(), async (req, res) => {
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
     await browser.close();
 
-    // Send response
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename=MSK_Report_${fields.eventNo || 'output'}.pdf`
@@ -88,7 +99,6 @@ app.post('/generate', upload.any(), async (req, res) => {
   }
 });
 
-// Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`PDF generation server running on port ${PORT}`);

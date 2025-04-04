@@ -213,7 +213,16 @@
   {{#if photo2}}
     <div><img src="{{ photo2 }}" alt="Photo 2"></div>
   {{/if}}
+  {{#unless photo1}}
+    {{#unless photo2}}
+      <div style="text-align:center;">
+        <img src="{{ logo }}" alt="Logo" style="max-width: 300px; margin-top: 20px;" />
+      </div>
+    {{/unless}}
+  {{/unless}}
 </div>
+
+
 
 <div style="text-align:center; margin-top: 30px;">
   <p style="font-size:18px;"><b>{{ offer }}</b></p>
