@@ -1,87 +1,76 @@
-const express = require("express");
-const multer = require("multer");
-const puppeteer = require("puppeteer");
-const bodyParser = require("body-parser");
-const fs = require("fs");
-const path = require("path");
-
+const express = require('express');
+const multer = require('multer');
+const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
+const bodyParser = require('body-parser');
 const app = express();
-const port = process.env.PORT || 3000;
-
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// Route: generate PDF
-app.post("/generate", upload.fields([{ name: "photo1" }, { name: "photo2" }]), async (req, res) => {
+app.post('/generate', upload.any(), async (req, res) => {
   try {
-    const formData = req.body;
-    const files = req.files;
+    // Load HTML template
+    let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
-    // Read HTML template
-    const templatePath = path.join(__dirname, "template.html");
-    let html = fs.readFileSync(templatePath, "utf8");
-
-    // Replace {{placeholders}} with form values
-    const inject = (key, value) => {
-      const safe = (value || "").toString().replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      html = html.replace(new RegExp(`{{\\s*${key}\\s*}}`, "g"), safe);
+    // Replace variables with form values
+    const fields = {
+      date: req.body.date,
+      eventNo: req.body.eventNo,
+      practitionersName: req.body.practitionersName,
+      practitionersEmail: req.body.practitionersEmail,
+      practitionersAddress: req.body.practitionersAddress,
+      practitionersNumber: req.body.practitionersNumber,
+      patientsName: req.body.patientsName,
+      offer: req.body.offer || '',
+      earLine: req.body.earLine || '',
+      earDrop: req.body.earDrop || '',
+      shoulderLine: req.body.shoulderLine || '',
+      shoulderDrop: req.body.shoulderDrop || '',
+      pelvisLine: req.body.pelvisLine || '',
+      pelvisDrop: req.body.pelvisDrop || '',
+      weightDistributionLeft: req.body.weightDistributionLeft || '',
+      weightDistributionRight: req.body.weightDistributionRight || '',
+      forwardHeadAngle: req.body.forwardHeadAngle || '',
+      bodySway: req.body.bodySway || '',
+      bodySwayDirection: req.body.bodySwayDirection || '',
+      kneeHeightDifference: req.body.kneeHeightDifference || '',
+      kneeDrop: req.body.kneeDrop || '',
+      aiSummary: req.body.aiSummary || '',
+      shortenedUrl: req.body.shortenedUrl || '',
+      qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
 
-    Object.keys(formData).forEach(key => inject(key, formData[key]));
-
-    // Handle optional photos
-    if (files && files["photo1"]) {
-      const photo1 = files["photo1"][0];
-      const base64 = photo1.buffer.toString("base64");
-      inject("photo1", `data:${photo1.mimetype};base64,${base64}`);
-    } else {
-      html = html.replace(/{{#if photo1}}[\s\S]*?{{\/if}}/g, "");
+    // Replace {{ variable }} with value in HTML
+    for (const key in fields) {
+      const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
+      html = html.replace(regex, fields[key] || '');
     }
 
-    if (files && files["photo2"]) {
-      const photo2 = files["photo2"][0];
-      const base64 = photo2.buffer.toString("base64");
-      inject("photo2", `data:${photo2.mimetype};base64,${base64}`);
-    } else {
-      html = html.replace(/{{#if photo2}}[\s\S]*?{{\/if}}/g, "");
-    }
-
-    // Launch Puppeteer and generate PDF
-    const browser = await puppeteer.launch({
-      headless: "new", // for recent Puppeteer versions
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
-
+    // Use Puppeteer to generate PDF
+    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "20mm", bottom: "20mm", left: "10mm", right: "10mm" }
-    });
-
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
     await browser.close();
 
+    // Send PDF
     res.set({
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename=MSK_Report_${formData.eventNo || "output"}.pdf`,
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=MSK_Report_${fields.eventNo || 'output'}.pdf`
     });
-
     res.send(pdfBuffer);
+
   } catch (error) {
-    console.error("PDF generation error:", error);
-    res.status(500).send("Failed to generate PDF");
+    console.error(error);
+    res.status(500).send("PDF generation failed");
   }
 });
 
-// Basic homepage route (optional)
-app.get("/", (req, res) => {
-  res.send("MSK Analysis Pro PDF Generator Server is running.");
-});
-
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`PDF generation server running on port ${PORT}`);
 });
