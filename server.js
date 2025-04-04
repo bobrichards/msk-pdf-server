@@ -1,86 +1,92 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const multer = require("multer");
+const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
-const puppeteer = require("puppeteer");
+const multer = require("multer");
+const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Multer for file uploads
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
-
-app.use(bodyParser.urlencoded({ extended: true }));
+// Middleware
+app.use(cors());
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
+// File upload config
+const upload = multer({ dest: "uploads/" });
+
+// Serve HTML template file
+const htmlTemplatePath = path.join(__dirname, "template.html");
+
+// Root endpoint to confirm server is running
 app.get("/", (req, res) => {
   res.send("MSK PDF server is running.");
 });
 
-app.post("/generate", upload.fields([
-  { name: 'photo1', maxCount: 1 },
-  { name: 'photo2', maxCount: 1 }
-]), async (req, res) => {
+// PDF generation endpoint
+app.post("/generate-pdf", upload.fields([{ name: "photo1" }, { name: "photo2" }]), async (req, res) => {
   try {
-    const templatePath = path.join(__dirname, "template.html");
-    let templateHtml = fs.readFileSync(templatePath, "utf8");
+    const formData = req.body;
 
-    const data = req.body;
+    // Load HTML template
+    let html = fs.readFileSync(htmlTemplatePath, "utf8");
 
-    // Inject all text fields
-    Object.keys(data).forEach(key => {
+    // Replace placeholders with actual data
+    for (const key in formData) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, "g");
-      templateHtml = templateHtml.replace(regex, data[key] || '');
-    });
+      html = html.replace(regex, formData[key]);
+    }
 
-    // Inject images as base64
+    // Handle uploaded images
     const photo1 = req.files?.photo1?.[0];
     const photo2 = req.files?.photo2?.[0];
 
     if (photo1) {
-      const base64 = photo1.buffer.toString("base64");
-      templateHtml = templateHtml.replace("{{photo1}}", `data:${photo1.mimetype};base64,${base64}`);
+      const imageBase64 = fs.readFileSync(photo1.path, "base64");
+      html = html.replace("{{photo1}}", `data:image/jpeg;base64,${imageBase64}`);
     } else {
-      templateHtml = templateHtml.replace("{{photo1}}", "");
+      html = html.replace("{{photo1}}", "");
     }
 
     if (photo2) {
-      const base64 = photo2.buffer.toString("base64");
-      templateHtml = templateHtml.replace("{{photo2}}", `data:${photo2.mimetype};base64,${base64}`);
+      const imageBase64 = fs.readFileSync(photo2.path, "base64");
+      html = html.replace("{{photo2}}", `data:image/jpeg;base64,${imageBase64}`);
     } else {
-      templateHtml = templateHtml.replace("{{photo2}}", "");
+      html = html.replace("{{photo2}}", "");
     }
 
-    // Launch Puppeteer
+    // Launch Puppeteer and generate PDF
     const browser = await puppeteer.launch({
       headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
     const page = await browser.newPage();
-    await page.setContent(templateHtml, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
     const pdfBuffer = await page.pdf({ format: "A4" });
-
     await browser.close();
 
+    // Set response headers and send PDF
     res.set({
       "Content-Type": "application/pdf",
-      "Content-Disposition": "attachment; filename=MSK_Report.pdf",
+      "Content-Disposition": "attachment; filename=report.pdf",
     });
+
     res.send(pdfBuffer);
 
+    // Cleanup uploaded files
+    if (photo1) fs.unlinkSync(photo1.path);
+    if (photo2) fs.unlinkSync(photo2.path);
   } catch (err) {
-    console.error("PDF Generation Error:", err);
-    res.status(500).send("PDF generation failed");
+    console.error("Error generating PDF:", err);
+    res.status(500).send("PDF generation failed.");
   }
 });
 
+// Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-const cors = require("cors");
-app.use(cors());
