@@ -1,71 +1,83 @@
-<script>
-async function generateReport(button) {
-  const form = document.getElementById("reportForm");
-  const formData = new FormData(form);
+const express = require("express");
+const bodyParser = require("body-parser");
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
+const puppeteer = require("puppeteer");
 
-  const payload = {
-    practitionersName: formData.get("practitionersName"),
-    profession: formData.get("profession"),
-    practitionersAddress: document.getElementById("practitionersAddress").value,
-    practitionersNumber: formData.get("practitionersNumber"),
-    practitionersEmail: formData.get("practitionersEmail"),
-    patientsName: formData.get("patientsName"),
-    url: formData.get("url"),
-    offer: formData.get("offer"),
-    eventNo: formData.get("eventNo"),
-    earLine: formData.get("earLine"),
-    earDrop: formData.get("earDrop"),
-    shoulderLine: formData.get("shoulderLine"),
-    shoulderDrop: formData.get("shoulderDrop"),
-    pelvisLine: formData.get("pelvisLine"),
-    pelvisDrop: formData.get("pelvisDrop"),
-    weightDistributionLeft: formData.get("weightDistributionLeft"),
-    weightDistributionRight: formData.get("weightDistributionRight"),
-    forwardHeadAngle: formData.get("forwardHeadAngle"),
-    bodySway: formData.get("bodySway"),
-    bodySwayDirection: formData.get("bodySwayDirection"),
-    kneeHeightDifference: formData.get("kneeHeightDifference"),
-    kneeDrop: formData.get("kneeDrop"),
-    photosTaken: formData.get("photosTaken"),
-    date: new Date().toLocaleDateString()
-  };
+const app = express();
+const PORT = process.env.PORT || 8080;
 
-  const photo1 = formData.get("photo1");
-  const photo2 = formData.get("photo2");
+// Multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
-  if (photo1 && photo1.size > 0) {
-    payload.photo1 = await toBase64(photo1);
-  }
-  if (photo2 && photo2.size > 0) {
-    payload.photo2 = await toBase64(photo2);
-  }
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
+app.get("/", (req, res) => {
+  res.send("MSK PDF server is running.");
+});
+
+app.post("/generate", upload.fields([
+  { name: 'photo1', maxCount: 1 },
+  { name: 'photo2', maxCount: 1 }
+]), async (req, res) => {
   try {
-    const response = await fetch("https://msk-pdf-server-production.up.railway.app/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+    const templatePath = path.join(__dirname, "template.html");
+    let templateHtml = fs.readFileSync(templatePath, "utf8");
+
+    const data = req.body;
+
+    // Inject all text fields
+    Object.keys(data).forEach(key => {
+      const regex = new RegExp(`{{\\s*${key}\\s*}}`, "g");
+      templateHtml = templateHtml.replace(regex, data[key] || '');
     });
 
-    if (!response.ok) throw new Error("Network response was not ok");
+    // Inject images as base64
+    const photo1 = req.files?.photo1?.[0];
+    const photo2 = req.files?.photo2?.[0];
 
-    const blob = await response.blob();
-    const pdfUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = pdfUrl;
-    link.download = `MSK_Report_${payload.eventNo || "output"}.pdf`;
-    link.click();
-  } catch (error) {
-    alert("PDF generation failed: " + error.message);
+    if (photo1) {
+      const base64 = photo1.buffer.toString("base64");
+      templateHtml = templateHtml.replace("{{photo1}}", `data:${photo1.mimetype};base64,${base64}`);
+    } else {
+      templateHtml = templateHtml.replace("{{photo1}}", "");
+    }
+
+    if (photo2) {
+      const base64 = photo2.buffer.toString("base64");
+      templateHtml = templateHtml.replace("{{photo2}}", `data:${photo2.mimetype};base64,${base64}`);
+    } else {
+      templateHtml = templateHtml.replace("{{photo2}}", "");
+    }
+
+    // Launch Puppeteer
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(templateHtml, { waitUntil: "networkidle0" });
+
+    const pdfBuffer = await page.pdf({ format: "A4" });
+
+    await browser.close();
+
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": "attachment; filename=MSK_Report.pdf",
+    });
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("PDF Generation Error:", err);
+    res.status(500).send("PDF generation failed");
   }
-}
+});
 
-function toBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-  });
-}
-</script>
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
