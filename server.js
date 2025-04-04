@@ -1,11 +1,23 @@
+const express = require('express');
+const multer = require('multer');
+const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
+const bodyParser = require('body-parser');
+const app = express();
+const upload = multer();
+
+// Middlewares
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
+// PDF Generation Route
 app.post('/generate', upload.any(), async (req, res) => {
   try {
-    console.log("Incoming request fields:");
-    console.log(req.body); // This should include 'aiSummary'
-
-    // Load HTML template
+    // Load the HTML template
     let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
+    // Extract fields
     const fields = {
       logo: req.body.logo || '',
       date: req.body.date,
@@ -34,16 +46,21 @@ app.post('/generate', upload.any(), async (req, res) => {
       qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
 
-    console.log("Parsed aiSummary:", fields.aiSummary);
+    // ? Optional Logging for Debugging
+    console.log("Incoming request fields:");
+    console.log(fields);
+    fs.writeFileSync("last_fields.json", JSON.stringify(fields, null, 2)); // For offline debugging if needed
 
+    // Replace {{ variable }} in the template
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-      html = html.replace(regex, fields[key] || '');
+      html = html.replace(regex, fields[key]);
     }
 
-    // Optional: write debug HTML to file (for testing)
+    // Optional: Write final HTML to file for manual testing
     fs.writeFileSync("debug_rendered.html", html);
 
+    // Generate PDF using Puppeteer
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -51,6 +68,7 @@ app.post('/generate', upload.any(), async (req, res) => {
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
     await browser.close();
 
+    // Send response
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename=MSK_Report_${fields.eventNo || 'output'}.pdf`
@@ -61,4 +79,10 @@ app.post('/generate', upload.any(), async (req, res) => {
     console.error("PDF generation error:", error);
     res.status(500).send("PDF generation failed");
   }
+});
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`PDF generation server running on port ${PORT}`);
 });
