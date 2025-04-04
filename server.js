@@ -1,49 +1,40 @@
-const express = require("express");
-const puppeteer = require("puppeteer");
-const fs = require("fs");
-const path = require("path");
-const bodyParser = require("body-parser");
+const express = require('express');
+const bodyParser = require('body-parser');
+const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
 app.use(bodyParser.json());
-app.use(express.static("public"));
 
-// ? Home route to confirm server is working
-app.get("/", (req, res) => {
-  res.send("MSK PDF server is running.");
+app.get('/', (req, res) => {
+  res.send('MSK PDF server is running.');
 });
 
-// ?? PDF generation route
-app.post("/generate", async (req, res) => {
-  try {
-    const templatePath = path.join(__dirname, "template.html");
-    let html = fs.readFileSync(templatePath, "utf8");
+app.post('/generate', async (req, res) => {
+  const { name, result, date } = req.body;
 
-    // Replace placeholders with data from request body
-    for (const key in req.body) {
-      html = html.replace(`{{${key}}}`, req.body[key]);
-    }
+  const html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8')
+    .replace('{{name}}', name)
+    .replace('{{result}}', result)
+    .replace('{{date}}', date);
 
-    const browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+  const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: 'domcontentloaded' });
 
-    const pdfBuffer = await page.pdf({ format: "A4" });
-    await browser.close();
+  const pdfBuffer = await page.pdf({ format: 'A4' });
+  await browser.close();
 
-    res.contentType("application/pdf");
-    res.send(pdfBuffer);
-  } catch (error) {
-    console.error("PDF generation error:", error);
-    res.status(500).send("Error generating PDF");
-  }
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': 'attachment; filename=output.pdf',
+  });
+  res.send(pdfBuffer);
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
