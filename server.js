@@ -17,6 +17,7 @@ app.post('/generate', upload.any(), async (req, res) => {
 
     // Replace variables with form values
     const fields = {
+	  logo: req.body.logo || '', 
       date: req.body.date,
       eventNo: req.body.eventNo,
       practitionersName: req.body.practitionersName,
