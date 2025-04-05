@@ -21,26 +21,46 @@ app.use(bodyParser.json());
 
 // PDF Generation Route
 app.post('/generate', upload.any(), async (req, res) => {
-  try {
-    let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
+ try {
+  let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
-    const photo1 = req.files.find(f => f.fieldname === "photo1");
-    const photo2 = req.files.find(f => f.fieldname === "photo2");
+  // Load up to 4 photo files
+  const photo1 = req.files.find(f => f.fieldname === "photo1");
+  const photo2 = req.files.find(f => f.fieldname === "photo2");
+  const photo3 = req.files.find(f => f.fieldname === "photo3");
+  const photo4 = req.files.find(f => f.fieldname === "photo4");
 
-    let imageSection = '<div class="image-container">';
-    if (photo1) {
-      const data1 = `data:${photo1.mimetype};base64,${photo1.buffer.toString("base64")}`;
-      imageSection += `<div><img src="${data1}" alt="Photo 1"></div>`;
-    }
-    if (photo2) {
-      const data2 = `data:${photo2.mimetype};base64,${photo2.buffer.toString("base64")}`;
-      imageSection += `<div><img src="${data2}" alt="Photo 2"></div>`;
-    }
-    if (!photo1 && !photo2) {
-      const logoUrl = req.body.logo || '';
-      imageSection += `<div style="text-align:center;"><img src="${logoUrl}" alt="Logo" style="max-width: 300px; margin-top: 20px;" /></div>`;
-    }
-    imageSection += '</div>';
+  const images = [];
+
+  if (photo1) {
+    const data = `data:${photo1.mimetype};base64,${photo1.buffer.toString("base64")}`;
+    images.push(`<div><img src="${data}" alt="Photo 1" /></div>`);
+  }
+  if (photo2) {
+    const data = `data:${photo2.mimetype};base64,${photo2.buffer.toString("base64")}`;
+    images.push(`<div><img src="${data}" alt="Photo 2" /></div>`);
+  }
+  if (photo3) {
+    const data = `data:${photo3.mimetype};base64,${photo3.buffer.toString("base64")}`;
+    images.push(`<div><img src="${data}" alt="Photo 3" /></div>`);
+  }
+  if (photo4) {
+    const data = `data:${photo4.mimetype};base64,${photo4.buffer.toString("base64")}`;
+    images.push(`<div><img src="${data}" alt="Photo 4" /></div>`);
+  }
+
+  let imageSection = '<div class="image-container">';
+  if (images.length > 0) {
+    imageSection += images.join('');
+  } else {
+    const logoUrl = req.body.logo || '';
+    imageSection += `<div style="text-align:center;"><img src="${logoUrl}" alt="Logo" style="max-width: 300px; margin-top: 20px;" /></div>`;
+  }
+  imageSection += '</div>';
+
+  // Replace {{ imageSection }} in your template
+  html = html.replace(/{{\s*imageSection\s*}}/g, imageSection);
+
 
     const fields = {
       logo: req.body.logo || '',
