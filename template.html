@@ -101,12 +101,19 @@
       page-break-before: always;
     }
 
-   .image-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 20px;
-  padding: 20px;
+.image-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.image-container img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  border-radius: 5px;
 }
 
 .image-container div {
@@ -115,14 +122,7 @@
   justify-content: center;
 }
 
-.image-container img {
-  width: 100%;
-  max-width: 100%;
-  max-height: 330px;
-  object-fit: contain;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-}
+
 
 
     footer {
