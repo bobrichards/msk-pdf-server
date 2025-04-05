@@ -109,8 +109,8 @@ app.post('/generate', upload.any(), async (req, res) => {
       bodySwayDirection: req.body.bodySwayDirection || '',
       kneeHeightDifference: req.body.kneeHeightDifference || '',
       kneeDrop: req.body.kneeDrop || '',
-      aiSummary: req.body.aiSummary || '',
-      shortenedUrl: req.body.shortenedUrl || '',
+      aiSummary: (req.body.aiSummary || '').replace(/^[,\s]+/, ''),
+	  shortenedUrl: (req.body.shortenedUrl || '').replace(/^[,\s]+/, ''),
       qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
 
