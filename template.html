@@ -145,9 +145,10 @@
 
 <header>
   <div class="headerSection">
-    <div class="logoAndName">
-      <img src="{{ logo }}" width="400px" style="padding-right:15px;" />
-    </div>
+    <div class="logoAndName" style="width: 300px; height: 100px; display: flex; align-items: center; justify-content: center; padding-right: 15px;">
+  <img src="{{ logo }}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+</div>
+
     <div>
       <p><b>Assessment conducted on:</b><br />{{ date }}</p>
       <p><b>Event Ref.</b><br />{{ eventNo }}</p>
