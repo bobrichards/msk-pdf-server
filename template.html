@@ -101,20 +101,22 @@
       page-break-before: always;
     }
 
-.image-container {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin: 20px 0;
-}
+  .image-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 30px 0;
+    page-break-inside: avoid;
+  }
 
-.image-container img {
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-}
+  .image-container img {
+    width: 48%;
+    height: auto;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    object-fit: contain;
+  }
 
 .image-container div {
   width: 45%; /* Two per row with some spacing */
