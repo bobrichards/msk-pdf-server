@@ -3,11 +3,13 @@ const multer = require('multer');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const fetch = require('node-fetch');
 const bodyParser = require('body-parser');
 const app = express();
 const upload = multer();
+const fetch = require('node-fetch');
 
+
+// Allow CORS
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -18,54 +20,74 @@ app.use((req, res, next) => {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+// Helper to fetch external image and convert to base64
+async function fetchImageAsBase64(url) {
+  try {
+    const res = await fetch(url);
+    const buffer = await res.arrayBuffer();
+    const mime = res.headers.get("content-type") || "image/png";
+    return `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`;
+  } catch (err) {
+    console.error("Failed to fetch logo image:", err.message);
+    return '';
+  }
+}
+
 app.post('/generate', upload.any(), async (req, res) => {
   try {
     let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
-    // Convert logo to base64
-    let logoBase64 = '';
-    if (req.body.logo && req.body.logo.startsWith('http')) {
-      try {
-        const logoResponse = await fetch(req.body.logo);
-        const logoBuffer = await logoResponse.buffer();
-        const contentType = logoResponse.headers.get('content-type');
-        logoBase64 = `data:${contentType};base64,${logoBuffer.toString('base64')}`;
-      } catch (err) {
-        console.error('Failed to fetch logo image:', err.message);
-      }
-    }
+	// Log body to check logo field
+fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
+  logo: req.body.logo,
+  allBody: req.body,
+  files: req.files.map(f => f.fieldname)
+}, null, 2));
 
-    // Handle up to 4 photos
+	
+    // Prepare photos
     const photoFields = ['photo1', 'photo2', 'photo3', 'photo4'];
     const images = [];
 
-    for (const field of photoFields) {
-      const file = req.files.find(f => f.fieldname === field);
+    photoFields.forEach(name => {
+      const file = req.files.find(f => f.fieldname === name);
       if (file) {
-        const data = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-        images.push(`<div><img src="${data}" alt="${field}" /></div>`);
+        const base64 = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+        images.push(`<div><img src="${base64}" alt="${name}" /></div>`);
       }
-    }
+    });
 
-    // Image Section
+    // Prepare fallback logo
+    const logoUrl = req.body.logo || '';
+    const logoBase64 = await fetchImageAsBase64(logoUrl);
+
     let imageSection = '<div class="image-container">';
     if (images.length > 0) {
-      imageSection += images.join('');
-    } else if (logoBase64) {
-      imageSection += `<div style="text-align:center;"><img src="${logoBase64}" alt="Logo" style="max-width: 300px; margin-top: 20px;" /></div>`;
+      // Format 2 per row using a CSS grid wrapper
+      imageSection = `
+        <div class="image-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+        ${images.join('\n')}
+        </div>`;
+    } else {
+      imageSection = `
+        <div class="image-container" style="text-align:center; padding: 20px;">
+          <img src="${logoBase64}" alt="Logo" style="max-width: 300px;" />
+        </div>`;
     }
-    imageSection += '</div>';
 
-    // Prepare template fields
+    // Replace placeholder now
+    html = html.replace(/{{\s*imageSection\s*}}/g, imageSection);
+
+    // Now replace all other fields
     const fields = {
       logo: logoBase64,
-      date: req.body.date,
-      eventNo: req.body.eventNo,
-      practitionersName: req.body.practitionersName,
-      practitionersEmail: req.body.practitionersEmail,
-      practitionersAddress: req.body.practitionersAddress,
-      practitionersNumber: req.body.practitionersNumber,
-      patientsName: req.body.patientsName,
+      date: req.body.date || '',
+      eventNo: req.body.eventNo || '',
+      practitionersName: req.body.practitionersName || '',
+      practitionersEmail: req.body.practitionersEmail || '',
+      practitionersAddress: req.body.practitionersAddress || '',
+      practitionersNumber: req.body.practitionersNumber || '',
+      patientsName: req.body.patientsName || '',
       offer: req.body.offer || '',
       earLine: req.body.earLine || '',
       earDrop: req.body.earDrop || '',
@@ -82,17 +104,18 @@ app.post('/generate', upload.any(), async (req, res) => {
       kneeDrop: req.body.kneeDrop || '',
       aiSummary: req.body.aiSummary || '',
       shortenedUrl: req.body.shortenedUrl || '',
-      qrCodeDataURL: req.body.qrCodeDataURL || '',
-      imageSection: imageSection
+      qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
 
-    // Replace variables in the template
+
+    fs.writeFileSync("last_fields.json", JSON.stringify(fields, null, 2));
+	
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
       html = html.replace(regex, fields[key]);
     }
 
-    // Optional debug
+    // Debugging (optional)
     fs.writeFileSync("debug_rendered.html", html);
 
     // Generate PDF
@@ -109,8 +132,8 @@ app.post('/generate', upload.any(), async (req, res) => {
     });
     res.send(pdfBuffer);
 
-  } catch (error) {
-    console.error("PDF generation error:", error);
+  } catch (err) {
+    console.error("PDF generation error:", err);
     res.status(500).send("PDF generation failed");
   }
 });
