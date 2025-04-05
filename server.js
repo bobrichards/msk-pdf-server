@@ -65,9 +65,10 @@ app.post('/generate', upload.any(), async (req, res) => {
     let imageSection = '';
     if (images.length > 0) {
       imageSection = `
-        <div class="image-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
-          ${images.join('\n')}
-        </div>`;
+  <div class="image-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-width: 500px; margin: 0 auto;">
+    ${images.map(img => `<div style="padding: 5px;"><img src="${img.match(/src="([^"]+)"/)[1]}" style="width: 100%; max-width: 240px; height: auto;" /></div>`).join('\n')}
+  </div>`;
+
     } else {
       imageSection = `
         <div class="image-container" style="text-align:center; padding: 20px;">
@@ -106,8 +107,6 @@ app.post('/generate', upload.any(), async (req, res) => {
       shortenedUrl: req.body.shortenedUrl || '',
       qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
-
-    console.log("Running on Node.js version", process.version);
 
     console.log("FIELDS RECEIVED:", JSON.stringify(fields, null, 2));
 
