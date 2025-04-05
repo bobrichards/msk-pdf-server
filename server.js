@@ -4,12 +4,24 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
+const fetch = require('node-fetch');
 const app = express();
 const upload = multer();
-const fetch = require('node-fetch');
 
+// ? Helper: Convert image URL to Base64
+async function fetchImageAsBase64(url) {
+  try {
+    const res = await fetch(url);
+    const buffer = await res.buffer(); // Correct buffer method
+    const mime = res.headers.get("content-type") || "image/png";
+    return `data:${mime};base64,${buffer.toString("base64")}`;
+  } catch (err) {
+    console.error("Failed to fetch logo image:", err.message);
+    return '';
+  }
+}
 
-// Allow CORS
+// ? CORS Middleware
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -20,32 +32,19 @@ app.use((req, res, next) => {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// Helper to fetch external image and convert to base64
-async function fetchImageAsBase64(url) {
-  try {
-    const res = await fetch(url);
-    const buffer = await res.arrayBuffer();
-    const mime = res.headers.get("content-type") || "image/png";
-    return `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`;
-  } catch (err) {
-    console.error("Failed to fetch logo image:", err.message);
-    return '';
-  }
-}
-
+// ? PDF Generation Route
 app.post('/generate', upload.any(), async (req, res) => {
   try {
     let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
-	// Log body to check logo field
-fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
-  logo: req.body.logo,
-  allBody: req.body,
-  files: req.files.map(f => f.fieldname)
-}, null, 2));
+    // Log logo and field debug (optional)
+    fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
+      logo: req.body.logo,
+      allBody: req.body,
+      files: req.files.map(f => f.fieldname)
+    }, null, 2));
 
-	
-    // Prepare photos
+    // ? Prepare images
     const photoFields = ['photo1', 'photo2', 'photo3', 'photo4'];
     const images = [];
 
@@ -57,16 +56,16 @@ fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
       }
     });
 
-    // Prepare fallback logo
+    // ? Logo as fallback
     const logoUrl = req.body.logo || '';
     const logoBase64 = await fetchImageAsBase64(logoUrl);
 
-    let imageSection = '<div class="image-container">';
+    // ? Construct image section
+    let imageSection = '';
     if (images.length > 0) {
-      // Format 2 per row using a CSS grid wrapper
       imageSection = `
         <div class="image-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
-        ${images.join('\n')}
+          ${images.join('\n')}
         </div>`;
     } else {
       imageSection = `
@@ -75,10 +74,10 @@ fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
         </div>`;
     }
 
-    // Replace placeholder now
+    // ? Inject image section first
     html = html.replace(/{{\s*imageSection\s*}}/g, imageSection);
 
-    // Now replace all other fields
+    // ? Replace all other fields
     const fields = {
       logo: logoBase64,
       date: req.body.date || '',
@@ -109,16 +108,16 @@ fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
 
     console.log("LOGO RECEIVED ON SERVER:", fields.logo);
     console.log("? FIELDS RECEIVED:", JSON.stringify(fields, null, 2));
-	
+
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
       html = html.replace(regex, fields[key]);
     }
 
-    // Debugging (optional)
+    // Save HTML for review (optional)
     fs.writeFileSync("debug_rendered.html", html);
 
-    // Generate PDF
+    // ? Generate PDF
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -138,6 +137,7 @@ fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
   }
 });
 
+// ? Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`PDF generation server running on port ${PORT}`);
