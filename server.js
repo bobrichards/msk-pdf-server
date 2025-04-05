@@ -4,10 +4,11 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
+const fetch = require('node-fetch'); // for external URL fetch, if needed
 const app = express();
 const upload = multer();
 
-// Allow CORS
+// CORS middleware
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -15,69 +16,49 @@ app.use((req, res, next) => {
   next();
 });
 
+// Body parsers
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
-// Helper to fetch external image and convert to base64
-async function fetchImageAsBase64(url) {
-  try {
-    const res = await fetch(url);
-    const buffer = await res.arrayBuffer();
-    const mime = res.headers.get("content-type") || "image/png";
-    return `data:${mime};base64,${Buffer.from(buffer).toString("base64")}`;
-  } catch (err) {
-    console.error("Failed to fetch logo image:", err.message);
-    return '';
-  }
-}
 
 app.post('/generate', upload.any(), async (req, res) => {
   try {
     let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
-    // Prepare photos
-    const photoFields = ['photo1', 'photo2', 'photo3', 'photo4'];
+    // Extract uploaded images
+    const photo1 = req.files.find(f => f.fieldname === "photo1");
+    const photo2 = req.files.find(f => f.fieldname === "photo2");
+    const photo3 = req.files.find(f => f.fieldname === "photo3");
+    const photo4 = req.files.find(f => f.fieldname === "photo4");
+
     const images = [];
+    const embedImage = (file, label) => {
+      return `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+    };
 
-    photoFields.forEach(name => {
-      const file = req.files.find(f => f.fieldname === name);
-      if (file) {
-        const base64 = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-        images.push(`<div><img src="${base64}" alt="${name}" /></div>`);
-      }
-    });
+    if (photo1) images.push(`<div><img src="${embedImage(photo1)}" alt="Photo 1" /></div>`);
+    if (photo2) images.push(`<div><img src="${embedImage(photo2)}" alt="Photo 2" /></div>`);
+    if (photo3) images.push(`<div><img src="${embedImage(photo3)}" alt="Photo 3" /></div>`);
+    if (photo4) images.push(`<div><img src="${embedImage(photo4)}" alt="Photo 4" /></div>`);
 
-    // Prepare fallback logo
-    const logoUrl = req.body.logo || '';
-    const logoBase64 = await fetchImageAsBase64(logoUrl);
-
-    let imageSection = '<div class="image-container">';
+    let imageSection = '<div class="image-container" style="display: flex; flex-wrap: wrap; gap: 20px;">';
     if (images.length > 0) {
-      // Format 2 per row using a CSS grid wrapper
-      imageSection = `
-        <div class="image-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
-        ${images.join('\n')}
-        </div>`;
+      imageSection += images.join('');
     } else {
-      imageSection = `
-        <div class="image-container" style="text-align:center; padding: 20px;">
-          <img src="${logoBase64}" alt="Logo" style="max-width: 300px;" />
-        </div>`;
+      const logoUrl = req.body.logo || '';
+      imageSection += `<div style="text-align:center;"><img src="${logoUrl}" alt="Logo" style="max-width: 300px; margin-top: 20px;" /></div>`;
     }
+    imageSection += '</div>';
 
-    // Replace placeholder now
-    html = html.replace(/{{\s*imageSection\s*}}/g, imageSection);
-
-    // Now replace all other fields
+    // Create field replacements
     const fields = {
-      logo: logoBase64,
-      date: req.body.date || '',
-      eventNo: req.body.eventNo || '',
-      practitionersName: req.body.practitionersName || '',
-      practitionersEmail: req.body.practitionersEmail || '',
-      practitionersAddress: req.body.practitionersAddress || '',
-      practitionersNumber: req.body.practitionersNumber || '',
-      patientsName: req.body.patientsName || '',
+      logo: req.body.logo || '',
+      date: req.body.date,
+      eventNo: req.body.eventNo,
+      practitionersName: req.body.practitionersName,
+      practitionersEmail: req.body.practitionersEmail,
+      practitionersAddress: req.body.practitionersAddress,
+      practitionersNumber: req.body.practitionersNumber,
+      patientsName: req.body.patientsName,
       offer: req.body.offer || '',
       earLine: req.body.earLine || '',
       earDrop: req.body.earDrop || '',
@@ -94,18 +75,19 @@ app.post('/generate', upload.any(), async (req, res) => {
       kneeDrop: req.body.kneeDrop || '',
       aiSummary: req.body.aiSummary || '',
       shortenedUrl: req.body.shortenedUrl || '',
-      qrCodeDataURL: req.body.qrCodeDataURL || ''
+      qrCodeDataURL: req.body.qrCodeDataURL || '',
+      imageSection: imageSection
     };
 
+    // Replace placeholders in HTML
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
       html = html.replace(regex, fields[key]);
     }
 
-    // Debugging (optional)
+    // Debug: Save final HTML
     fs.writeFileSync("debug_rendered.html", html);
 
-    // Generate PDF
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -119,8 +101,8 @@ app.post('/generate', upload.any(), async (req, res) => {
     });
     res.send(pdfBuffer);
 
-  } catch (err) {
-    console.error("PDF generation error:", err);
+  } catch (error) {
+    console.error("PDF generation error:", error);
     res.status(500).send("PDF generation failed");
   }
 });
