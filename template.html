@@ -101,19 +101,29 @@
       page-break-before: always;
     }
 
-    .image-container {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      padding: 20px;
-    }
+   .image-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
+}
 
-    .image-container img {
-      max-width: 100%;
-      max-height: 400px;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-    }
+.image-container div {
+  width: 45%; /* Two per row with some spacing */
+  display: flex;
+  justify-content: center;
+}
+
+.image-container img {
+  width: 100%;
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+}
+
 
     footer {
       padding: 20px;
