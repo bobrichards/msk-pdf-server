@@ -3,12 +3,11 @@ const multer = require('multer');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
 const bodyParser = require('body-parser');
-const fetch = require('node-fetch'); // for external URL fetch, if needed
 const app = express();
 const upload = multer();
 
-// CORS middleware
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -16,7 +15,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Body parsers
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
@@ -24,34 +22,43 @@ app.post('/generate', upload.any(), async (req, res) => {
   try {
     let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
-    // Extract uploaded images
-    const photo1 = req.files.find(f => f.fieldname === "photo1");
-    const photo2 = req.files.find(f => f.fieldname === "photo2");
-    const photo3 = req.files.find(f => f.fieldname === "photo3");
-    const photo4 = req.files.find(f => f.fieldname === "photo4");
+    // Convert logo to base64
+    let logoBase64 = '';
+    if (req.body.logo && req.body.logo.startsWith('http')) {
+      try {
+        const logoResponse = await fetch(req.body.logo);
+        const logoBuffer = await logoResponse.buffer();
+        const contentType = logoResponse.headers.get('content-type');
+        logoBase64 = `data:${contentType};base64,${logoBuffer.toString('base64')}`;
+      } catch (err) {
+        console.error('Failed to fetch logo image:', err.message);
+      }
+    }
 
+    // Handle up to 4 photos
+    const photoFields = ['photo1', 'photo2', 'photo3', 'photo4'];
     const images = [];
-    const embedImage = (file, label) => {
-      return `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-    };
 
-    if (photo1) images.push(`<div><img src="${embedImage(photo1)}" alt="Photo 1" /></div>`);
-    if (photo2) images.push(`<div><img src="${embedImage(photo2)}" alt="Photo 2" /></div>`);
-    if (photo3) images.push(`<div><img src="${embedImage(photo3)}" alt="Photo 3" /></div>`);
-    if (photo4) images.push(`<div><img src="${embedImage(photo4)}" alt="Photo 4" /></div>`);
+    for (const field of photoFields) {
+      const file = req.files.find(f => f.fieldname === field);
+      if (file) {
+        const data = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+        images.push(`<div><img src="${data}" alt="${field}" /></div>`);
+      }
+    }
 
-    let imageSection = '<div class="image-container" style="display: flex; flex-wrap: wrap; gap: 20px;">';
+    // Image Section
+    let imageSection = '<div class="image-container">';
     if (images.length > 0) {
       imageSection += images.join('');
-    } else {
-      const logoUrl = req.body.logo || '';
-      imageSection += `<div style="text-align:center;"><img src="${logoUrl}" alt="Logo" style="max-width: 300px; margin-top: 20px;" /></div>`;
+    } else if (logoBase64) {
+      imageSection += `<div style="text-align:center;"><img src="${logoBase64}" alt="Logo" style="max-width: 300px; margin-top: 20px;" /></div>`;
     }
     imageSection += '</div>';
 
-    // Create field replacements
+    // Prepare template fields
     const fields = {
-      logo: req.body.logo || '',
+      logo: logoBase64,
       date: req.body.date,
       eventNo: req.body.eventNo,
       practitionersName: req.body.practitionersName,
@@ -79,15 +86,16 @@ app.post('/generate', upload.any(), async (req, res) => {
       imageSection: imageSection
     };
 
-    // Replace placeholders in HTML
+    // Replace variables in the template
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
       html = html.replace(regex, fields[key]);
     }
 
-    // Debug: Save final HTML
+    // Optional debug
     fs.writeFileSync("debug_rendered.html", html);
 
+    // Generate PDF
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
