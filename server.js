@@ -65,12 +65,13 @@ app.post('/generate', upload.any(), async (req, res) => {
     let imageSection = '';
     if (images.length > 0) {
      imageSection = `
-  <div class="image-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; width: 100%; margin: 40px 0;">
+  <div class="image-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; width: 80%; margin: 40px auto;">
     ${images.map(img => `
       <div style="width: 100%;">
-        <img src="${img.match(/src="([^"]+)"/)[1]}" style="width: 100%; height: auto; border-radius: 4px; border: 1px solid #ccc;" />
+        <img src="${img.match(/src="([^"]+)"/)[1]}" style="width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;" />
       </div>`).join('\n')}
   </div>`;
+
 
 
     } else {
