@@ -15,53 +15,41 @@ app.use((req, res, next) => {
   next();
 });
 
-// Parsing Middlewares
+// Body Parsers
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 // PDF Generation Route
 app.post('/generate', upload.any(), async (req, res) => {
- try {
-  let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
+  try {
+    let html = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 
-  // Load up to 4 photo files
-  const photo1 = req.files.find(f => f.fieldname === "photo1");
-  const photo2 = req.files.find(f => f.fieldname === "photo2");
-  const photo3 = req.files.find(f => f.fieldname === "photo3");
-  const photo4 = req.files.find(f => f.fieldname === "photo4");
+    // Extract uploaded images
+    const imageFields = ['photo1', 'photo2', 'photo3', 'photo4'];
+    const images = [];
 
-  const images = [];
+    imageFields.forEach(field => {
+      const file = req.files.find(f => f.fieldname === field);
+      if (file) {
+        const base64 = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+        images.push(`<div class="half-width"><img src="${base64}" alt="${field}" /></div>`);
+      }
+    });
 
-  if (photo1) {
-    const data = `data:${photo1.mimetype};base64,${photo1.buffer.toString("base64")}`;
-    images.push(`<div><img src="${data}" alt="Photo 1" /></div>`);
-  }
-  if (photo2) {
-    const data = `data:${photo2.mimetype};base64,${photo2.buffer.toString("base64")}`;
-    images.push(`<div><img src="${data}" alt="Photo 2" /></div>`);
-  }
-  if (photo3) {
-    const data = `data:${photo3.mimetype};base64,${photo3.buffer.toString("base64")}`;
-    images.push(`<div><img src="${data}" alt="Photo 3" /></div>`);
-  }
-  if (photo4) {
-    const data = `data:${photo4.mimetype};base64,${photo4.buffer.toString("base64")}`;
-    images.push(`<div><img src="${data}" alt="Photo 4" /></div>`);
-  }
+    // Create imageSection
+    let imageSection = '<div class="image-container">';
+    if (images.length > 0) {
+      imageSection += images.join('');
+    } else {
+      const logoUrl = req.body.logo || '';
+      imageSection += `<div style="text-align:center;"><img src="${logoUrl}" alt="Logo" style="max-width: 300px; margin-top: 20px;" /></div>`;
+    }
+    imageSection += '</div>';
 
-  let imageSection = '<div class="image-container">';
-  if (images.length > 0) {
-    imageSection += images.join('');
-  } else {
-    const logoUrl = req.body.logo || '';
-    imageSection += `<div style="text-align:center;"><img src="${logoUrl}" alt="Logo" style="max-width: 300px; margin-top: 20px;" /></div>`;
-  }
-  imageSection += '</div>';
+    // Replace {{ imageSection }} early
+    html = html.replace(/{{\s*imageSection\s*}}/g, imageSection);
 
-  // Replace {{ imageSection }} in your template
-  html = html.replace(/{{\s*imageSection\s*}}/g, imageSection);
-
-
+    // Replace other fields
     const fields = {
       logo: req.body.logo || '',
       date: req.body.date,
@@ -87,19 +75,18 @@ app.post('/generate', upload.any(), async (req, res) => {
       kneeDrop: req.body.kneeDrop || '',
       aiSummary: req.body.aiSummary || '',
       shortenedUrl: req.body.shortenedUrl || '',
-      qrCodeDataURL: req.body.qrCodeDataURL || '',
-      imageSection: imageSection
+      qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
 
-    // Replace all placeholders in the HTML
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
       html = html.replace(regex, fields[key]);
     }
 
-    // Output final HTML for debug if needed
+    // Optional debug
     fs.writeFileSync("debug_rendered.html", html);
 
+    // Generate PDF
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -119,6 +106,7 @@ app.post('/generate', upload.any(), async (req, res) => {
   }
 });
 
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`PDF generation server running on port ${PORT}`);
