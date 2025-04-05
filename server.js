@@ -80,6 +80,7 @@ fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
 
     // Now replace all other fields
     const fields = {
+	  console.log("LOGO RECEIVED ON SERVER:", fields.logo);
       logo: logoBase64,
       date: req.body.date || '',
       eventNo: req.body.eventNo || '',
