@@ -9,7 +9,6 @@ const app = express();
 const upload = multer();
 
 // Helper: Convert image URL to Base64
-console.log("Logo URL received:", req.body.logo);
 async function fetchImageAsBase64(url) {
   try {
     console.log("Fetching image from URL:", url);
