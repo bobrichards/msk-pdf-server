@@ -108,7 +108,7 @@ fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
     };
 
 
-    fs.writeFileSync("last_fields.json", JSON.stringify(fields, null, 2));
+    console.log("? FIELDS RECEIVED:", JSON.stringify(fields, null, 2));
 	
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
