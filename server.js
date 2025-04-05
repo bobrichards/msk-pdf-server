@@ -105,6 +105,7 @@ app.post('/generate', upload.any(), async (req, res) => {
       shortenedUrl: req.body.shortenedUrl || '',
       qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
+    console.log("Fetching logo from:", url);
 
     console.log("Running on Node.js version", process.version);
 
