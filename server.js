@@ -106,8 +106,9 @@ app.post('/generate', upload.any(), async (req, res) => {
       qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
 
-    console.log("LOGO RECEIVED ON SERVER:", fields.logo);
-    console.log("? FIELDS RECEIVED:", JSON.stringify(fields, null, 2));
+    console.log("Running on Node.js version", process.version);
+
+    console.log("FIELDS RECEIVED:", JSON.stringify(fields, null, 2));
 
     for (const key in fields) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
