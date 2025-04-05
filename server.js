@@ -74,12 +74,13 @@ app.post('/generate', upload.any(), async (req, res) => {
 
 
 
-    } else {
-      imageSection = `
-        <div class="image-container" align="center" style="text-align:center; padding: 20px;">
-          <img src="${logoBase64}" alt="Logo" style="max-width: 300px;" />
-        </div>`;
-    }
+} else {
+  imageSection = `
+    <div class="image-container" style="text-align: center; padding: 20px;">
+      <img src="${logoBase64}" alt="Logo" style="max-width: 300px; display: block; margin: 0 auto;" />
+    </div>`;
+}
+
 
     // Inject image section first
     html = html.replace(/{{\s*imageSection\s*}}/g, imageSection);
