@@ -80,7 +80,6 @@ fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
 
     // Now replace all other fields
     const fields = {
-	  console.log("LOGO RECEIVED ON SERVER:", fields.logo);
       logo: logoBase64,
       date: req.body.date || '',
       eventNo: req.body.eventNo || '',
@@ -108,7 +107,7 @@ fs.writeFileSync('debug_raw_new.txt', JSON.stringify({
       qrCodeDataURL: req.body.qrCodeDataURL || ''
     };
 
-
+    console.log("LOGO RECEIVED ON SERVER:", fields.logo);
     console.log("? FIELDS RECEIVED:", JSON.stringify(fields, null, 2));
 	
     for (const key in fields) {
