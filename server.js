@@ -8,7 +8,7 @@ const fetch = require('node-fetch');
 const app = express();
 const upload = multer();
 
-// ? Helper: Convert image URL to Base64
+// Helper: Convert image URL to Base64
 async function fetchImageAsBase64(url) {
   try {
     const res = await fetch(url);
@@ -21,7 +21,7 @@ async function fetchImageAsBase64(url) {
   }
 }
 
-// ? CORS Middleware
+// CORS Middleware
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -44,7 +44,7 @@ app.post('/generate', upload.any(), async (req, res) => {
       files: req.files.map(f => f.fieldname)
     }, null, 2));
 
-    // ? Prepare images
+    // Prepare images
     const photoFields = ['photo1', 'photo2', 'photo3', 'photo4'];
     const images = [];
 
@@ -56,11 +56,11 @@ app.post('/generate', upload.any(), async (req, res) => {
       }
     });
 
-    // ? Logo as fallback
+    // Logo as fallback
     const logoUrl = req.body.logo || '';
     const logoBase64 = await fetchImageAsBase64(logoUrl);
 
-    // ? Construct image section
+    // Construct image section
     let imageSection = '';
     if (images.length > 0) {
       imageSection = `
@@ -74,10 +74,10 @@ app.post('/generate', upload.any(), async (req, res) => {
         </div>`;
     }
 
-    // ? Inject image section first
+    // Inject image section first
     html = html.replace(/{{\s*imageSection\s*}}/g, imageSection);
 
-    // ? Replace all other fields
+    // Replace all other fields
     const fields = {
       logo: logoBase64,
       date: req.body.date || '',
@@ -118,7 +118,7 @@ app.post('/generate', upload.any(), async (req, res) => {
     // Save HTML for review (optional)
     fs.writeFileSync("debug_rendered.html", html);
 
-    // ? Generate PDF
+    //  Generate PDF
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
@@ -138,7 +138,7 @@ app.post('/generate', upload.any(), async (req, res) => {
   }
 });
 
-// ? Start Server
+//  Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`PDF generation server running on port ${PORT}`);
