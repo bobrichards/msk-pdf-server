@@ -74,9 +74,9 @@ app.post('/generate', upload.any(), async (req, res) => {
 	  <br />
         <img src="${img.match(/src="([^"]+)"/)[1]}" style="width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;" />
       <br />
-	  <p>End of Report</p>
+	 
 	  </div>`).join('\n')}
-  </div>`;
+  </div><br /><br /> <div align="center"><p><b>End of Report</b></p></div>`;
 
 
 } else {
