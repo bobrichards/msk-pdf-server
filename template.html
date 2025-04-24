@@ -208,33 +208,43 @@
   </table>
 </main>
 
-<hr />
-<div style="text-align:center;">
-  <h3><u><b>AI Personal Summary</b></u></h3>
-</div>
-
-<div style=" overflow-y: hidden;height: 390px; padding: 15px;font-size: 14px;line-height: 1.6; border: 1px solid #ccc; border-radius: 6px; max-width: 700px; margin: 20px auto; word-break: break-word;">
-  {{ aiSummary }}
-</div>
-
-<div class="page-break"></div>
-
-<div style="text-align:center;">
-<br />
-  <h3>{{ practitionersName }} - {{ practitionersAddress }}</h3>
-  <p>A copy of this report will be held by your practitioner.<br>
-</div>
-
-{{ imageSection }}
-
-
-
+<hr /><br />
 
 <div style="text-align:center; margin-top: 20px;">
   <p style="font-size:18px;"><b>{{ offer }}</b></p>
   <img src="{{ qrCodeDataURL }}" alt="QR Code"><br />
   <span>{{ shortenedUrl }}</span>
 </div>
+
+<div style="text-align:center;">
+<br />
+  <h3>{{ practitionersName }} - {{ practitionersAddress }}</h3>
+  <p>A copy of this report will be held by your practitioner.</p>
+</div>
+<br>
+<div class="page-break"></div><br />
+  <div class="headerSection">
+    <div class="logoAndName" style="width: 350px; height: 100px; display: flex; align-items: center; justify-content: center; padding-right: 15px;">
+  <img src="{{ logo }}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+</div><br />
+<div style="text-align:center;">
+  <h3><u><b>AI Personal Summary</b></u></h3>
+</div>
+
+<div style=" overflow-y: hidden;height: 650px; padding: 15px;font-size: 14px;line-height: 1.6; border: 1px solid #ccc; border-radius: 6px; max-width: 700px; margin: 20px auto; word-break: break-word;">
+  {{ aiSummary }}
+</div>
+<p>This summary is for informational purposes only and does not replace medical advice from your healthcare professional.</p>
+
+
+<div class="page-break"></div>
+
+{{ imageSection }}
+
+
+
+
+
 
 <!-- <footer>
   <p><strong>This report is designed to support informed discussions between practitioners and patients.</strong></p>
