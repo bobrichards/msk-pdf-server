@@ -79,7 +79,6 @@ app.post('/generate', upload.any(), async (req, res) => {
   </div>`;
 
 
-
 } else {
   imageSection = `
     <div class="image-container1" style="text-align: center; padding: 20px;">
