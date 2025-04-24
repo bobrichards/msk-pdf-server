@@ -68,6 +68,8 @@ app.post('/generate', upload.any(), async (req, res) => {
   <div class="image-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; width: 65%; margin: 40px auto;">
     ${images.map(img => `
       <div style="width: 100%;">
+	  <h2>Assessment Images</h2>
+	  <p>All reports are produced dynamically and no identifiable data is stored in this process</p>
         <img src="${img.match(/src="([^"]+)"/)[1]}" style="width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;" />
       </div>`).join('\n')}
   </div>`;
