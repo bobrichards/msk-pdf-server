@@ -68,9 +68,9 @@ app.post('/generate', upload.any(), async (req, res) => {
 	  <div align="center"> 
 	   <div class="image-container1" style="text-align: center; padding: 20px;">
       <img src="${logoBase64}" alt="Logo" style="max-width: 300px; display: block; margin: 0 auto;" />
-    </div><br />
-	  <h2>Assessment Images</h2><br />
-	  <p>All reports are produced dynamically and no identifiable data is stored in this process</p></div><br />
+    </div>
+	  <h2>Assessment Images</h2>
+	  <p>All reports are produced dynamically and no identifiable data is stored in this process</p></div>
   <div class="image-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; width: 65%; margin: 40px auto;">
     ${images.map(img => `
       <div style="width: 100%;">
