@@ -85,7 +85,6 @@ app.post('/generate', upload.any(), async (req, res) => {
 } else {
   imageSection = `
     <div class="image-container1" style="text-align: center; padding: 20px;">
-      <!-- <img src="${logoBase64}" alt="Logo" style="max-width: 300px; display: block; margin: 0 auto;" /> -->
     </div>`;
 }
 
