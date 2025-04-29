@@ -65,7 +65,6 @@ app.post('/generate', upload.any(), async (req, res) => {
     let imageSection = '';
     if (images.length > 0) {
      imageSection = `
-	 <div class="page-break"></div>
 	  <div align="center"> 
 	   <div class="image-container1" style="text-align: center; padding: 20px;">
       <img src="${logoBase64}" alt="Logo" style="max-width: 300px; display: block; margin: 0 auto;" />
@@ -84,10 +83,7 @@ app.post('/generate', upload.any(), async (req, res) => {
 
 
 } else {
-  imageSection = `
-  <div class="page-break"></div>
-    <div class="image-container1" style="text-align: center; padding: 20px;">
-    </div>`;
+  imageSection = ``;
 }
 
 
