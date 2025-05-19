@@ -131,7 +131,7 @@ app.post('/generate', upload.any(), async (req, res) => {
 
     //  Generate PDF
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-const page = await browser.newPage();
+	const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
 
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
